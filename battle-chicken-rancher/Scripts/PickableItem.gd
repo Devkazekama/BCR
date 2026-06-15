@@ -63,13 +63,16 @@ func _input(event: InputEvent) -> void:
 					distance_accumulated = 0.0
 					last_pos = global_position
 					
+					freeze = true # Stop physics engine while dragging
+
 					get_viewport().set_input_as_handled()
 					_on_picked_up()
 					
 		elif not event.pressed and is_dragging:
 			is_dragging = false
 			z_index = base_z_index
-			velocity = throw_velocity
+			freeze = false # Resume physics engine
+			linear_velocity = throw_velocity
 			_on_dropped()
 
 func _physics_process(delta: float) -> void:
@@ -80,9 +83,6 @@ func _physics_process(delta: float) -> void:
 		throw_velocity = (current_mouse_pos - last_mouse_pos) / delta
 		last_mouse_pos = current_mouse_pos
 		global_position = current_mouse_pos + drag_offset
-		velocity = Vector2.ZERO
-	else:
-		super._physics_process(delta)
 
 	if use_motion_blur:
 		_handle_motion_blur(delta)
@@ -166,8 +166,6 @@ func _spawn_ghost(spawn_pos: Vector2) -> void:
 	var tween = ghost.create_tween()
 	tween.tween_property(ghost, "modulate:a", 0.0, trail_lifetime).set_trans(Tween.TRANS_SINE)
 	
-	# CRITICAL FIX: We no longer check `active_ghosts` inside this asynchronous callback.
-	# We just tell the ghost to safely delete itself when the fade is done.
 	tween.tween_callback(ghost.queue_free)
 
 func _on_picked_up() -> void:
