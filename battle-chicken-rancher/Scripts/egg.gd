@@ -1,4 +1,4 @@
-extends Node2D
+extends RigidBody2D
 class_name Egg
 
 @export var egg_tier: int = 1

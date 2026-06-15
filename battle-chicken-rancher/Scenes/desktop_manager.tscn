@@ -27,7 +27,6 @@ sort_container = NodePath("..")
 
 [node name="Pet" parent="WorldLayer/WorldEntityContainer" unique_id=1110865103 instance=ExtResource("2_74rwn")]
 position = Vector2(455, 1382)
-collision_priority = 3.995
 
 [node name="Feeder" parent="WorldLayer/WorldEntityContainer" unique_id=1258728696 instance=ExtResource("4_ctdne")]
 position = Vector2(529, 1361)
