@@ -9,7 +9,7 @@ size = Vector2(36, 64)
 
 [node name="PlantPot" type="CharacterBody2D" unique_id=2033925569]
 z_as_relative = false
-collision_layer = 2
+collision_layer = 4
 collision_mask = 3
 script = ExtResource("1_fpfic")
 corn_scene = ExtResource("2_tg1cv")

@@ -7,11 +7,11 @@
 radius = 16.0
 height = 56.0
 
-[node name="Corn" type="CharacterBody2D" unique_id=1970328863 groups=["food"]]
-z_index = 1
+[node name="Corn" type="RigidBody2D" unique_id=1970328863 groups=["food"]]
+z_index = 2
 z_as_relative = false
-collision_layer = 4
-collision_mask = 5
+collision_layer = 2
+collision_mask = 4
 input_pickable = true
 script = ExtResource("1_jq12m")
 gravity = 600.0

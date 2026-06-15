@@ -1,9 +1,5 @@
-extends CharacterBody2D
+extends RigidBody2D
 class_name DesktopBody2D
-
-@export_group("Physics")
-@export var gravity: float = 1200.0
-@export var friction: float = 20.0
 
 @export_group("Prototyping")
 ## Scales every visual and physics node attached to this object mathematically.
@@ -21,6 +17,10 @@ func _ready() -> void:
 	z_as_relative = false
 	base_z_index = z_index
 	
+	# Enable contact monitoring for bounce and collisions
+	contact_monitor = true
+	max_contacts_reported = 4
+
 	# 1. Universally scale everything inside this object FIRST
 	if base_scale_multiplier != 1.0:
 		_apply_universal_scale(self)
@@ -70,7 +70,7 @@ func _apply_universal_scale(current_node: Node) -> void:
 			_apply_universal_scale(child)
 
 # ---------------------------------------------------------
-# DESKTOP PHYSICS ENGINE
+# DESKTOP PHYSICS BOUNDARIES
 # ---------------------------------------------------------
 
 func _calculate_collision_extents() -> void:
@@ -98,36 +98,43 @@ func _calculate_collision_extents() -> void:
 			if scaled_p.y < bounds_top: bounds_top = scaled_p.y
 			if scaled_p.y > bounds_bottom: bounds_bottom = scaled_p.y
 
-func _physics_process(delta: float) -> void:
-	velocity.y += gravity * delta
+func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+	# Ignore bounds checks if being dragged
+	if "is_dragging" in self and self.get("is_dragging") == true:
+		return
+
 	var screen_rect = DisplayServer.screen_get_usable_rect(get_window().current_screen)
-	
 	var floor_limit = screen_rect.end.y - GameSettings.taskbar_offset - bounds_bottom
-
-	if global_position.y >= floor_limit - 1.0 and not is_walking:
-		velocity.x = move_toward(velocity.x, 0, friction * 50 * delta)
-
-	move_and_slide()
-	_handle_screen_bounce(screen_rect, floor_limit)
-
-func _handle_screen_bounce(screen_rect: Rect2, floor_limit: float) -> void:
 	var ceiling_limit = screen_rect.position.y - bounds_top
 	var left_limit = screen_rect.position.x - bounds_left
 	var right_limit = screen_rect.end.x - bounds_right
 
-	if global_position.y > floor_limit:
-		global_position.y = floor_limit
-		if velocity.y > 200: velocity.y *= -0.5
-		else: velocity.y = 0
+	var pos = state.transform.origin
+	var vel = state.linear_velocity
+	var bounced = false
 
-	if global_position.y < ceiling_limit:
-		global_position.y = ceiling_limit
-		velocity.y *= -0.5
+	if pos.y > floor_limit:
+		pos.y = floor_limit
+		if vel.y > 200: vel.y *= -0.5
+		else: vel.y = 0
+		bounced = true
 
-	if global_position.x > right_limit:
-		global_position.x = right_limit
-		velocity.x *= -0.5
+	if pos.y < ceiling_limit:
+		pos.y = ceiling_limit
+		vel.y *= -0.5
+		bounced = true
 
-	if global_position.x < left_limit:
-		global_position.x = left_limit
-		velocity.x *= -0.5
+	if pos.x > right_limit:
+		pos.x = right_limit
+		vel.x *= -0.5
+		bounced = true
+
+	if pos.x < left_limit:
+		pos.x = left_limit
+		vel.x *= -0.5
+		bounced = true
+
+	if bounced:
+		state.transform.origin = pos
+		state.linear_velocity = vel
+

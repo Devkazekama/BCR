@@ -16,10 +16,12 @@ var target_node: Node2D = null
 
 var debug_timer: float = 0.0 
 @onready var anim_sprite: AnimatedSprite2D = $AnimatedSprite2D
+var pet_velocity: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
-	z_index = 2
+	z_index = 3
 	z_as_relative = false
+	lock_rotation = true # Keeps the pet upright
 	super._ready()
 	
 	if not data:
@@ -48,6 +50,9 @@ func _physics_process(delta: float) -> void:
 	
 	is_walking = (current_state == State.WANDER or current_state == State.MOVING_TO_FEEDER or current_state == State.MOVING_TO_EGG or current_state == State.FINDING_BED)
 	
+	# Apply pet velocity manually since we are overriding forces for walk cycle.
+	linear_velocity.x = pet_velocity.x
+
 	super._physics_process(delta)
 
 func _on_picked_up() -> void:
@@ -152,7 +157,7 @@ func _transition_to(new_state: State, target: Node2D = null) -> void:
 	
 	match current_state:
 		State.IDLE:
-			velocity.x = 0
+			pet_velocity.x = 0
 			state_timer = randf_range(1.0, 4.0)
 			_play_flavor_idle()
 		State.WANDER:
@@ -166,26 +171,24 @@ func _transition_to(new_state: State, target: Node2D = null) -> void:
 			state_timer = 5.0 
 			if anim_sprite: anim_sprite.play("walk")
 		State.SLEEPING:
-			velocity.x = 0
+			pet_velocity.x = 0
 			if anim_sprite: anim_sprite.play("sleep")
 		State.MOVING_TO_FEEDER:
 			if anim_sprite: anim_sprite.play("walk")
 		State.EATING:
-			velocity.x = 0
+			pet_velocity.x = 0
 			state_timer = 2.0 * data.evolution_tier 
 			if anim_sprite: anim_sprite.play("eat")
 		State.MOVING_TO_EGG:
 			if target_node: target_node.is_being_roosted = true
 			if anim_sprite: anim_sprite.play("walk")
 		State.ROOSTING:
-			velocity.x = 0
+			pet_velocity.x = 0
 			state_timer = 10.0 
 			if anim_sprite: anim_sprite.play("sleep") 
 
 func _play_flavor_idle() -> void:
 	if not anim_sprite: return
-	# Weighted random: Mostly stands idle, occasionally pecks the ground ("eat"). 
-	# "sleep" has been completely removed so it remains an identifiable mechanical state.
 	var flavor_anims = ["idle", "idle", "idle", "idle", "eat"]
 	anim_sprite.play(flavor_anims.pick_random())
 
@@ -243,9 +246,32 @@ func _get_screen_safe_x(desired_x: float) -> float:
 
 func _move_towards_target_x(target_x: float) -> void:
 	var direction = sign(target_x - global_position.x)
-	velocity.x = lerp(velocity.x, direction * data.walk_speed, acceleration)
-	if anim_sprite: anim_sprite.flip_h = (direction < 0)
+	pet_velocity.x = lerp(pet_velocity.x, direction * data.walk_speed, acceleration)
+
+	if direction != 0:
+		_flip_pet(direction < 0)
+
+
+func _flip_pet(is_left: bool) -> void:
+	if anim_sprite: anim_sprite.flip_h = is_left
 	
+	if has_node("InteractionRay"):
+		var ray = $InteractionRay
+		ray.target_position.x = abs(ray.target_position.x) * (-1 if is_left else 1)
+
+	if has_node("CollisionPolygon2D"):
+		var poly = $CollisionPolygon2D
+		# Note: We must duplicate or read original points to prevent double flipping degradation.
+		# A simple way: check the sign of the furthest point, or maintain base points.
+		if not poly.has_meta("base_polygon"):
+			poly.set_meta("base_polygon", poly.polygon)
+
+		var base_points = poly.get_meta("base_polygon")
+		var flipped_points = PackedVector2Array()
+		for p in base_points:
+			flipped_points.append(Vector2(p.x * (-1 if is_left else 1), p.y))
+		poly.polygon = flipped_points
+
 func _find_available_food() -> Node2D:
 	var feeders = get_tree().get_nodes_in_group("feeder")
 	for f in feeders:

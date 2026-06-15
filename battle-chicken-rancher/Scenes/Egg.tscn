@@ -3,7 +3,10 @@
 [ext_resource type="Script" uid="uid://cms0axaceyvnp" path="res://Scripts/egg.gd" id="1_hgbad"]
 [ext_resource type="Texture2D" uid="uid://cejjcn3lmnwrx" path="res://Sprites/64x64 Corn Kernel Pixel Art (6).png" id="2_e1q8q"]
 
-[node name="Egg" type="Node2D" unique_id=2141408977]
+[node name="Egg" type="RigidBody2D" unique_id=2141408977]
+collision_mask = 4
+collision_layer = 2
+z_index = 2
 script = ExtResource("1_hgbad")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=680990936 groups=["egg"]]
