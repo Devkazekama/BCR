@@ -8,12 +8,13 @@ extends PickableItem
 @export var walk_speed: float = 100.0
 @export var acceleration: float = 0.1
 
-enum State { IDLE, WANDER, SLEEPING, MOVING_TO_FEEDER, EATING, MOVING_TO_EGG, ROOSTING, FINDING_BED }
+enum State { IDLE, WANDER, SLEEPING, MOVING_TO_FEEDER, EATING, MOVING_TO_EGG, ROOSTING, FINDING_BED, FALLING, RECOVERING, FORCED_WANDER }
 var current_state: State = State.IDLE
 var state_timer: float = 0.0
 var target_destination: Vector2 = Vector2.ZERO
 var target_node: Node2D = null
 
+var was_abruptly_woken: bool = false
 var debug_timer: float = 0.0 
 @onready var anim_sprite: AnimatedSprite2D = $AnimatedSprite2D
 var pet_velocity: Vector2 = Vector2.ZERO
@@ -22,6 +23,11 @@ func _ready() -> void:
 	z_index = 3
 	z_as_relative = false
 	lock_rotation = true # Keeps the pet upright
+
+	# Collision logic: Layer 1, Mask 1 (Pets collide only with Pets)
+	collision_layer = 1
+	collision_mask = 1
+
 	super._ready()
 	
 	if not data:
@@ -48,18 +54,25 @@ func _physics_process(delta: float) -> void:
 	_evaluate_state_machine()
 	_execute_current_state(delta)
 	
-	is_walking = (current_state == State.WANDER or current_state == State.MOVING_TO_FEEDER or current_state == State.MOVING_TO_EGG or current_state == State.FINDING_BED)
+	is_walking = (current_state == State.WANDER or current_state == State.MOVING_TO_FEEDER or current_state == State.MOVING_TO_EGG or current_state == State.FINDING_BED or current_state == State.FORCED_WANDER)
 	
-	# Apply pet velocity manually since we are overriding forces for walk cycle.
-	linear_velocity.x = pet_velocity.x
+	if current_state != State.FALLING and current_state != State.RECOVERING:
+		# Apply pet velocity manually since we are overriding forces for walk cycle.
+		linear_velocity.x = pet_velocity.x
 
 	super._physics_process(delta)
+
+func _on_dropped() -> void:
+	super._on_dropped()
+	_transition_to(State.FALLING)
 
 func _on_picked_up() -> void:
 	super._on_picked_up()
 	if current_state == State.SLEEPING or current_state == State.FINDING_BED:
 		print(data.species_name, " was woken up abruptly!")
-		_transition_to(State.IDLE)
+		was_abruptly_woken = true
+
+	_transition_to(State.IDLE)
 
 func _update_needs(delta: float) -> void:
 	var energy_pct = (data.current_energy / data.max_energy) * 100.0
@@ -96,7 +109,7 @@ func _update_needs(delta: float) -> void:
 	data.happiness = clamp(data.happiness, 0.0, 100.0)
 
 func _evaluate_state_machine() -> void:
-	if current_state == State.EATING or current_state == State.ROOSTING or current_state == State.FINDING_BED:
+	if current_state == State.EATING or current_state == State.ROOSTING or current_state == State.FINDING_BED or current_state == State.FALLING or current_state == State.RECOVERING or current_state == State.FORCED_WANDER:
 		return
 		
 	var energy_pct = (data.current_energy / data.max_energy) * 100.0
@@ -186,6 +199,15 @@ func _transition_to(new_state: State, target: Node2D = null) -> void:
 			pet_velocity.x = 0
 			state_timer = 10.0 
 			if anim_sprite: anim_sprite.play("sleep") 
+		State.FALLING:
+			lock_rotation = false
+		State.RECOVERING:
+			pass
+		State.FORCED_WANDER:
+			var direction = 1 if randf() > 0.5 else -1
+			target_destination = Vector2(_get_screen_safe_x(global_position.x + (direction * randf_range(50, 200))), global_position.y)
+			state_timer = randf_range(2.0, 4.0)
+			if anim_sprite: anim_sprite.play("walk")
 
 func _play_flavor_idle() -> void:
 	if not anim_sprite: return
@@ -238,6 +260,30 @@ func _execute_current_state(delta: float) -> void:
 				
 		State.ROOSTING:
 			if state_timer <= 0 or not is_instance_valid(target_node):
+				_transition_to(State.IDLE)
+
+		State.FALLING:
+			# Chicken is falling/tumbling. Check if it has come to a rest.
+			if linear_velocity.length() < 10.0:
+				_transition_to(State.RECOVERING)
+
+		State.RECOVERING:
+			# Smoothly right itself
+			# Ensure we handle continuous rotation cleanly
+			rotation = lerp_angle(rotation, 0.0, 5.0 * delta)
+			var normalized_rot = wrapf(rotation, -PI, PI)
+			if abs(normalized_rot) < 0.05:
+				rotation = 0.0
+				lock_rotation = true
+				if "was_abruptly_woken" in self and self.get("was_abruptly_woken"):
+					self.set("was_abruptly_woken", false)
+					_transition_to(State.FORCED_WANDER)
+				else:
+					_transition_to(State.IDLE)
+
+		State.FORCED_WANDER:
+			_move_towards_target_x(target_destination.x)
+			if abs(global_position.x - target_destination.x) < 10 or state_timer <= 0:
 				_transition_to(State.IDLE)
 
 func _get_screen_safe_x(desired_x: float) -> float:

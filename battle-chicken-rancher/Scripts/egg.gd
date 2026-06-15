@@ -8,6 +8,12 @@ var is_being_roosted: bool = false
 var has_hatched: bool = false
 
 func _ready() -> void:
+	# Collision logic: Layer 2, Mask 2 (Props collide only with Props)
+	collision_layer = 2
+	collision_mask = 2
+
+	super._ready()
+
 	add_to_group("egg")
 	# Higher tier eggs take longer to hatch
 	required_hatch_time = 60.0 * egg_tier
