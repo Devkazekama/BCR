@@ -4,13 +4,19 @@
 [ext_resource type="Texture2D" uid="uid://btaffewic8c4i" path="res://Sprites/64x64 Corn Kernel Pixel Art (1).png" id="1_lit2m"]
 [ext_resource type="PackedScene" uid="uid://bgnqxeirf0omf" path="res://Scenes/Corn.tscn" id="2_tg1cv"]
 
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_high_friction"]
+friction = 1.0
+bounce = 0.0
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_lv78e"]
 size = Vector2(36, 64)
 
 [node name="PlantPot" type="RigidBody2D" unique_id=2033925569]
+mass = 5.0
+physics_material_override = SubResource("PhysicsMaterial_high_friction")
 z_as_relative = false
 collision_layer = 4
-collision_mask = 3
+collision_mask = 4
 script = ExtResource("1_fpfic")
 corn_scene = ExtResource("2_tg1cv")
 

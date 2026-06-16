@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://cejjcn3lmnwrx" path="res://Sprites/64x64 Corn Kernel Pixel Art (6).png" id="2_e1q8q"]
 
 [node name="Egg" type="RigidBody2D" unique_id=2141408977]
-collision_mask = 4
+collision_mask = 2
 collision_layer = 2
 z_index = 2
 script = ExtResource("1_hgbad")

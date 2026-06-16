@@ -48,8 +48,13 @@ func _input(event: InputEvent) -> void:
 				
 				for item in get_tree().get_nodes_in_group("pickable"):
 					if is_instance_valid(item) and item.is_hovered:
-						if item.base_z_index >= highest_z:
-							highest_z = item.base_z_index
+						# Attached items get absolute highest priority so they can be plucked from overlapping parents
+						var priority = item.base_z_index
+						if item.get("is_attached") == true:
+							priority += 1000
+
+						if priority >= highest_z:
+							highest_z = priority
 							winner = item
 							
 				if winner == self:
@@ -85,7 +90,11 @@ func _physics_process(delta: float) -> void:
 		global_position = current_mouse_pos + drag_offset
 
 		# Smoothly right the object when picked up
-		rotation = lerp_angle(rotation, 0.0, 15.0 * delta)
+		# Using global_rotation handles cases where it was a child of a rotated parent (like the PlantPot)
+		global_rotation = lerp_angle(global_rotation, 0.0, 15.0 * delta)
+
+		# Force physics engine to recognize the rotation change
+		PhysicsServer2D.body_set_state(get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM, global_transform)
 
 	if use_motion_blur:
 		_handle_motion_blur(delta)

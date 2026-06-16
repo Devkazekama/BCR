@@ -12,9 +12,9 @@ var current_corn: Node2D = null
 func _ready() -> void:
 	z_index = 0
 	
-	# High dampening so it doesn't slide across the floor
-	linear_damp = 5.0
-	angular_damp = 5.0
+	# Removed artificial dampening so the pot falls and moves with weight
+	# linear_damp = 0.0
+	# angular_damp = 0.0
 
 	# Collision logic: Layer 3, Mask 3 (Facilities collide only with Facilities)
 	collision_layer = 4 # 2^2
@@ -40,10 +40,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 
-	if is_instance_valid(current_corn) and not current_corn.is_queued_for_deletion():
-		if current_corn.get("is_attached") == true:
-			current_corn.global_position = spawn_point.global_position
-			current_corn.rotation = self.rotation
+	# The corn is now a child of spawn_point, so we don't need to manually update its transform every frame
 
 func _on_picked_up() -> void:
 	super._on_picked_up()
@@ -76,12 +73,10 @@ func spawn_corn() -> void:
 		current_corn.z_as_relative = false
 		current_corn.z_index = 1
 		
-		if sort_container:
-			sort_container.call_deferred("add_child", current_corn)
-		else:
-			get_parent().call_deferred("add_child", current_corn)
+		# Attach directly to the spawn point so it inherits rotation perfectly without physics fighting
+		spawn_point.call_deferred("add_child", current_corn)
 
 		await get_tree().process_frame
 
 		if is_instance_valid(current_corn):
-			current_corn.global_position = spawn_point.global_position
+			current_corn.position = Vector2.ZERO
