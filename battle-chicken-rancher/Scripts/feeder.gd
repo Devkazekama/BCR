@@ -10,13 +10,13 @@ var food_stock: int = 0
 func _ready() -> void:
 	z_index = 0
 
-	# High dampening so it doesn't slide across the floor
-	linear_damp = 5.0
-	angular_damp = 5.0
+	# Removed artificial dampening so the feeder falls and moves with weight
+	# linear_damp = 0.0
+	# angular_damp = 0.0
 
-	# Collision logic: Layer 4, Mask 0 (Ethereal)
-	collision_layer = 8 # 2^3
-	collision_mask = 0
+	# Collision logic: Layer 3 (value 4), Mask 3 (Facilities collide only with Facilities)
+	collision_layer = 4
+	collision_mask = 4
 
 	super._ready() # <--- This automatically triggers the universal scaler now!
 	add_to_group("feeder")

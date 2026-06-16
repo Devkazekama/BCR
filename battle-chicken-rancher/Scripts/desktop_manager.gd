@@ -23,6 +23,47 @@ func _setup_window() -> void:
 	if entity_container:
 		entity_container.position = Vector2.ZERO
 
+	_setup_physics_boundaries(screen_rect)
+
+func _setup_physics_boundaries(screen_rect: Rect2) -> void:
+	var boundary_thickness = 100.0
+
+	# Create boundaries parent node
+	var boundaries_node = Node2D.new()
+	boundaries_node.name = "PhysicsBoundaries"
+	add_child(boundaries_node)
+
+	# Helper to create a static body segment
+	var create_wall = func(rect: Rect2, name: String):
+		var static_body = StaticBody2D.new()
+		static_body.name = name
+
+		# Set collision layers - boundary walls should collide with everything
+		static_body.collision_layer = 1 | 2 | 4 | 8
+		static_body.collision_mask = 0 # Walls don't need to check for anything, just be hit
+
+		var collision_shape = CollisionShape2D.new()
+		var rect_shape = RectangleShape2D.new()
+		rect_shape.size = rect.size
+		collision_shape.shape = rect_shape
+		collision_shape.position = rect.position + (rect.size / 2.0)
+
+		static_body.add_child(collision_shape)
+		boundaries_node.add_child(static_body)
+
+	# Floor
+	var floor_y = screen_rect.size.y - GameSettings.taskbar_offset
+	create_wall.call(Rect2(-boundary_thickness, floor_y, screen_rect.size.x + (boundary_thickness * 2), boundary_thickness), "Floor")
+
+	# Ceiling
+	create_wall.call(Rect2(-boundary_thickness, -boundary_thickness, screen_rect.size.x + (boundary_thickness * 2), boundary_thickness), "Ceiling")
+
+	# Left Wall
+	create_wall.call(Rect2(-boundary_thickness, -boundary_thickness, boundary_thickness, screen_rect.size.y + (boundary_thickness * 2)), "LeftWall")
+
+	# Right Wall
+	create_wall.call(Rect2(screen_rect.size.x, -boundary_thickness, boundary_thickness, screen_rect.size.y + (boundary_thickness * 2)), "RightWall")
+
 func _process(_delta: float) -> void:
 	_update_passthrough_region()
 

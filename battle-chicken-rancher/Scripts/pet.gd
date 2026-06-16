@@ -205,8 +205,9 @@ func _transition_to(new_state: State, target: Node2D = null) -> void:
 			pass
 		State.FORCED_WANDER:
 			var direction = 1 if randf() > 0.5 else -1
-			target_destination = Vector2(_get_screen_safe_x(global_position.x + (direction * randf_range(50, 200))), global_position.y)
-			state_timer = randf_range(2.0, 4.0)
+			target_destination = Vector2(_get_screen_safe_x(global_position.x + (direction * randf_range(200, 400))), global_position.y)
+			# Increase the timer significantly so it wanders for a bit before immediately searching for a bed again
+			state_timer = randf_range(5.0, 8.0)
 			if anim_sprite: anim_sprite.play("walk")
 
 func _play_flavor_idle() -> void:
@@ -269,11 +270,13 @@ func _execute_current_state(delta: float) -> void:
 
 		State.RECOVERING:
 			# Smoothly right itself
-			# Ensure we handle continuous rotation cleanly
-			rotation = lerp_angle(rotation, 0.0, 5.0 * delta)
-			var normalized_rot = wrapf(rotation, -PI, PI)
+			# Ensure we handle continuous rotation cleanly using global_rotation
+			global_rotation = lerp_angle(global_rotation, 0.0, 5.0 * delta)
+			PhysicsServer2D.body_set_state(get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM, global_transform)
+
+			var normalized_rot = wrapf(global_rotation, -PI, PI)
 			if abs(normalized_rot) < 0.05:
-				rotation = 0.0
+				global_rotation = 0.0
 				lock_rotation = true
 				if "was_abruptly_woken" in self and self.get("was_abruptly_woken"):
 					self.set("was_abruptly_woken", false)

@@ -4,13 +4,19 @@
 [ext_resource type="Texture2D" uid="uid://dyvehx2b1aj0h" path="res://Sprites/64x64 Corn Kernel Pixel Art (3).png" id="2_k4glw"]
 [ext_resource type="Texture2D" uid="uid://dt20u1aosb7tr" path="res://Sprites/64x64 Corn Kernel Pixel Art (4).png" id="3_7dqj8"]
 
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_high_friction"]
+friction = 1.0
+bounce = 0.0
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_av6up"]
 size = Vector2(56, 6)
 
-[node name="Feeder" type="CharacterBody2D" unique_id=2111581992 node_paths=PackedStringArray("feed_overlay")]
+[node name="Feeder" type="RigidBody2D" unique_id=2111581992 node_paths=PackedStringArray("feed_overlay")]
+mass = 5.0
+physics_material_override = SubResource("PhysicsMaterial_high_friction")
 z_index = 0
 collision_layer = 4
-collision_mask = 3
+collision_mask = 4
 script = ExtResource("1_rgakh")
 feed_overlay = NodePath("Visuals/FeedOverlaySprite")
 
