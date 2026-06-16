@@ -12,6 +12,7 @@ bounce = 0.0
 size = Vector2(36, 64)
 
 [node name="PlantPot" type="RigidBody2D" unique_id=2033925569]
+continuous_cd = 2
 mass = 5.0
 physics_material_override = SubResource("PhysicsMaterial_high_friction")
 z_as_relative = false

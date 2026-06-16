@@ -12,6 +12,7 @@ bounce = 0.0
 size = Vector2(56, 6)
 
 [node name="Feeder" type="RigidBody2D" unique_id=2111581992 node_paths=PackedStringArray("feed_overlay")]
+continuous_cd = 2
 mass = 5.0
 physics_material_override = SubResource("PhysicsMaterial_high_friction")
 z_index = 0

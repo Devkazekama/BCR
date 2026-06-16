@@ -26,7 +26,8 @@ func _setup_window() -> void:
 	_setup_physics_boundaries(screen_rect)
 
 func _setup_physics_boundaries(screen_rect: Rect2) -> void:
-	var boundary_thickness = 100.0
+	# Make walls extremely thick to prevent fast-moving physics tunneling
+	var boundary_thickness = 1000.0
 
 	# Create boundaries parent node
 	var boundaries_node = Node2D.new()
@@ -70,20 +71,33 @@ func _process(_delta: float) -> void:
 func _update_passthrough_region() -> void:
 	var polygons: Array[PackedVector2Array] = []
 	
-	for child in entity_container.get_children():
-		if not is_instance_valid(child) or child.is_queued_for_deletion():
+	var nodes_to_process = []
+
+	# Recursively collect all relevant Node2Ds (including attached children like Corn)
+	var queue = entity_container.get_children()
+	while queue.size() > 0:
+		var current = queue.pop_front()
+		if not is_instance_valid(current) or current.is_queued_for_deletion():
 			continue
 			
-		if child.is_visible_in_tree() and child is Node2D:
-			var rect = _get_node_rect(child)
-			if rect.has_area():
-				var poly = PackedVector2Array([
-					rect.position,
-					Vector2(rect.end.x, rect.position.y),
-					rect.end,
-					Vector2(rect.position.x, rect.end.y)
-				])
-				polygons.append(poly)
+		if current.is_visible_in_tree() and current is Node2D:
+			# Only process things that are "pickable" items, pets, or facilities to avoid drawing boxes around random internal nodes
+			if current.is_in_group("pickable") or current.is_in_group("pet") or current.is_in_group("food") or current is RigidBody2D:
+				nodes_to_process.append(current)
+
+			# Add children to queue
+			queue.append_array(current.get_children())
+
+	for child in nodes_to_process:
+		var rect = _get_node_rect(child)
+		if rect.has_area():
+			var poly = PackedVector2Array([
+				rect.position,
+				Vector2(rect.end.x, rect.position.y),
+				rect.end,
+				Vector2(rect.position.x, rect.end.y)
+			])
+			polygons.append(poly)
 				
 	if polygons.size() == 0:
 		DisplayServer.window_set_mouse_passthrough([Vector2(-1, -1)])
@@ -149,22 +163,45 @@ func _get_node_rect(node: Node2D) -> Rect2:
 	var col_shape: CollisionShape2D = node.get_node_or_null("CollisionShape2D")
 	
 	if poly_node and poly_node.polygon.size() > 0:
-		var points = poly_node.polygon
-		var min_p = points[0]
-		var max_p = points[0]
-		for p in points:
-			min_p.x = min(min_p.x, p.x)
-			min_p.y = min(min_p.y, p.y)
-			max_p.x = max(max_p.x, p.x)
-			max_p.y = max(max_p.y, p.y)
+		var min_p = Vector2(99999, 99999)
+		var max_p = Vector2(-99999, -99999)
+		for p in poly_node.polygon:
+			# Apply local rotation and scale before calculating bounding box
+			var local_p = (p * poly_node.scale)
+			var rotated_p = local_p.rotated(poly_node.global_rotation)
+			var final_p = poly_node.global_position + rotated_p
+
+			min_p.x = min(min_p.x, final_p.x)
+			min_p.y = min(min_p.y, final_p.y)
+			max_p.x = max(max_p.x, final_p.x)
+			max_p.y = max(max_p.y, final_p.y)
 			
-		var scaled_size = (max_p - min_p) * poly_node.global_scale
-		var scaled_pos = min_p * poly_node.global_scale
-		base_rect = Rect2(poly_node.global_position + scaled_pos, scaled_size)
+		base_rect = Rect2(min_p, max_p - min_p)
 		
 	elif col_shape and col_shape.shape:
 		var rect = col_shape.shape.get_rect()
-		base_rect = Rect2(col_shape.global_position + rect.position, rect.size * col_shape.global_scale)
+		var points = [
+			Vector2(rect.position.x, rect.position.y),
+			Vector2(rect.end.x, rect.position.y),
+			Vector2(rect.position.x, rect.end.y),
+			Vector2(rect.end.x, rect.end.y)
+		]
+
+		var min_p = Vector2(99999, 99999)
+		var max_p = Vector2(-99999, -99999)
+
+		for p in points:
+			# Apply local rotation and scale before calculating bounding box
+			var local_p = (p * col_shape.scale)
+			var rotated_p = local_p.rotated(col_shape.global_rotation)
+			var final_p = col_shape.global_position + rotated_p
+
+			min_p.x = min(min_p.x, final_p.x)
+			min_p.y = min(min_p.y, final_p.y)
+			max_p.x = max(max_p.x, final_p.x)
+			max_p.y = max(max_p.y, final_p.y)
+
+		base_rect = Rect2(min_p, max_p - min_p)
 	else:
 		base_rect = Rect2(node.global_position - Vector2(25, 25), Vector2(50, 50))
 		
