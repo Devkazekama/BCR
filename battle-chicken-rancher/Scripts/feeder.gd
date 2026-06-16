@@ -9,6 +9,15 @@ var food_stock: int = 0
 
 func _ready() -> void:
 	z_index = 0
+
+	# High dampening so it doesn't slide across the floor
+	linear_damp = 5.0
+	angular_damp = 5.0
+
+	# Collision logic: Layer 4, Mask 0 (Ethereal)
+	collision_layer = 8 # 2^3
+	collision_mask = 0
+
 	super._ready() # <--- This automatically triggers the universal scaler now!
 	add_to_group("feeder")
 	_update_visuals()

@@ -104,10 +104,57 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 		return
 
 	var screen_rect = DisplayServer.screen_get_usable_rect(get_window().current_screen)
-	var floor_limit = screen_rect.end.y - GameSettings.taskbar_offset - bounds_bottom
-	var ceiling_limit = screen_rect.position.y - bounds_top
-	var left_limit = screen_rect.position.x - bounds_left
-	var right_limit = screen_rect.end.x - bounds_right
+
+	# Dynamically calculate bounds based on current rotation
+	var current_bounds_bottom = bounds_bottom
+	var current_bounds_top = bounds_top
+	var current_bounds_left = bounds_left
+	var current_bounds_right = bounds_right
+
+	var col_shape = get_node_or_null("CollisionShape2D")
+	var poly_shape = get_node_or_null("CollisionPolygon2D")
+
+	if col_shape and col_shape.shape:
+		var rect = col_shape.shape.get_rect()
+		var points = [
+			Vector2(rect.position.x, rect.position.y),
+			Vector2(rect.end.x, rect.position.y),
+			Vector2(rect.position.x, rect.end.y),
+			Vector2(rect.end.x, rect.end.y)
+		]
+
+		current_bounds_bottom = -99999.0
+		current_bounds_top = 99999.0
+		current_bounds_left = 99999.0
+		current_bounds_right = -99999.0
+
+		for p in points:
+			# Apply local position/scale, then rotate
+			var local_p = (p * col_shape.scale) + col_shape.position
+			var rotated_p = local_p.rotated(rotation)
+			if rotated_p.y > current_bounds_bottom: current_bounds_bottom = rotated_p.y
+			if rotated_p.y < current_bounds_top: current_bounds_top = rotated_p.y
+			if rotated_p.x < current_bounds_left: current_bounds_left = rotated_p.x
+			if rotated_p.x > current_bounds_right: current_bounds_right = rotated_p.x
+
+	elif poly_shape and poly_shape.polygon.size() > 0:
+		current_bounds_bottom = -99999.0
+		current_bounds_top = 99999.0
+		current_bounds_left = 99999.0
+		current_bounds_right = -99999.0
+
+		for p in poly_shape.polygon:
+			var scaled_p = (p * poly_shape.scale) + poly_shape.position
+			var rotated_p = scaled_p.rotated(rotation)
+			if rotated_p.x < current_bounds_left: current_bounds_left = rotated_p.x
+			if rotated_p.x > current_bounds_right: current_bounds_right = rotated_p.x
+			if rotated_p.y < current_bounds_top: current_bounds_top = rotated_p.y
+			if rotated_p.y > current_bounds_bottom: current_bounds_bottom = rotated_p.y
+
+	var floor_limit = screen_rect.end.y - GameSettings.taskbar_offset - current_bounds_bottom
+	var ceiling_limit = screen_rect.position.y - current_bounds_top
+	var left_limit = screen_rect.position.x - current_bounds_left
+	var right_limit = screen_rect.end.x - current_bounds_right
 
 	var pos = state.transform.origin
 	var vel = state.linear_velocity

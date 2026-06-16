@@ -84,6 +84,9 @@ func _physics_process(delta: float) -> void:
 		last_mouse_pos = current_mouse_pos
 		global_position = current_mouse_pos + drag_offset
 
+		# Smoothly right the object when picked up
+		rotation = lerp_angle(rotation, 0.0, 15.0 * delta)
+
 	if use_motion_blur:
 		_handle_motion_blur(delta)
 	else:
